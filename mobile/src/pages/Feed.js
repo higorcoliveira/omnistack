@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import { Text, View, Image, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
 import api from '../services/api';
+import io from 'socket.io-client';
 
 import camera from '../assets/camera.png';
 import more from '../assets/more.png';
@@ -14,11 +15,34 @@ class Feed extends Component {
     };
 
     async componentDidMount() {
-        // this.registerToSocket();
+        this.registerToSocket();
         const resp = await api.get('posts');
 
         console.log(resp.data);
         this.setState({ feed: resp.data });
+    }
+
+    // atualiza a página, tanto com posts e likes
+    registerToSocket = () => {
+        const socket = io('http://192.168.1.5:3000');
+
+        socket.on('post', newPost => {
+            this.setState({
+                feed: [newPost, ...this.state.feed]
+            })
+        })
+
+        socket.on('like', likedPost => {
+            this.setState({
+                feed: this.state.feed.map(post => 
+                    post._id === likedPost._id ? likedPost : post
+                )
+            })
+        })
+    }
+
+    handleLike = id => {
+        api.post(`/posts/${id}/like`)
     }
 
     static navigationOptions = ({ navigation }) => ({
@@ -51,7 +75,7 @@ class Feed extends Component {
                                 <View style={styles.actions}>
                                     <TouchableOpacity 
                                         style={styles.action}
-                                        onPress={() => {}}>
+                                        onPress={() => {this.handleLike(item._id)}}>
                                         <Image source={like} />
                                     </TouchableOpacity>
                                     <TouchableOpacity
